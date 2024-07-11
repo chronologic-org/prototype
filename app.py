@@ -54,6 +54,13 @@ def callback(api_type: str):
     state = session.get('state')
     if not state:
         return 'State not found in session', 400
+    
+    request_state = request.args.get('state')
+    print(f"State in session: {state}")  # Debug statement
+    print(f"State in request: {request_state}")  # Debug statement
+    
+    if state != request_state:
+        return 'State mismatch error', 400
 
     if api_type == 'google':
         flow = Flow.from_client_secrets_file(
@@ -70,7 +77,7 @@ def callback(api_type: str):
     credentials = flow.credentials
     session[f'{api_type}_credentials'] = credentials_to_dict(credentials)
 
-    return redirect(url_for('calendar_events', api_type=api_type))
+    return redirect(url_for('calendar_events'))
 
 @app.route('/calendar')
 def calendar_events():
