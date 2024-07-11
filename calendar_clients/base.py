@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-class Calendar(ABC):
+class CalendarClient(ABC):
     @abstractmethod
     def create_event(self, calendar_id, event):
         pass
