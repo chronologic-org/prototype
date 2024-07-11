@@ -12,3 +12,7 @@ class CalendarClient(ABC):
     @abstractmethod
     def update_event(self, calendar_id, event_id, event):
         pass
+    
+    @abstractmethod
+    def get_events(self, calendar_id, max_results=10):
+        pass

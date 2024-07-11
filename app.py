@@ -1,9 +1,11 @@
-from flask import Flask, request, redirect, url_for, session
+from flask import Flask, jsonify, request, redirect, url_for, session
 from google.oauth2 import credentials as google_credentials
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
 import os
 from dotenv import load_dotenv
+
+from calendar_clients import CalendarClientFactory
 
 # Load environment variables from .env file
 load_dotenv()
@@ -28,32 +30,37 @@ os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"  # Enable HTTP (insecure) for lo
 def index():
     return 'Welcome to Chronologic!'
 
-@app.route('/authorize')
-def authorize():
-    # Create OAuth2 flow instance
-    flow = Flow.from_client_secrets_file(CREDENTIALS_FILE, scopes=SCOPES)
+@app.route('/authorize/<api_type>')
+def authorize(api_type: str):
+    if api_type == 'google':
+        flow = Flow.from_client_secrets_file(CREDENTIALS_FILE, scopes=SCOPES)
+        
+    else:
+        return 'Unsupported API type', 400
+
     flow.redirect_uri = REDIRECT_URI
 
     authorization_url, state = flow.authorization_url(
         access_type='offline',
         include_granted_scopes='true'
     )
-
-    # Store the state in the session to verify the callback request
+    
     session['state'] = state
-    print(f"State saved in session: {state}")
-
+    session['api_type'] = api_type
     return redirect(authorization_url)
 
-@app.route('/google/callback')
-def callback():
-    print("Session contents:", session)
+@app.route('/<api_type>/callback')
+def callback(api_type: str):
     state = session.get('state')
     if not state:
         return 'State not found in session', 400
 
-    flow = Flow.from_client_secrets_file(
-        CREDENTIALS_FILE, scopes=SCOPES, state=state)
+    if api_type == 'google':
+        flow = Flow.from_client_secrets_file(
+            CREDENTIALS_FILE, scopes=SCOPES, state=state)
+    else:
+        return 'Unsupported API type', 400
+    
     flow.redirect_uri = REDIRECT_URI
 
     authorization_response = request.url
@@ -61,30 +68,29 @@ def callback():
 
     # Store the credentials in the session
     credentials = flow.credentials
-    session['credentials'] = credentials_to_dict(credentials)
+    session[f'{api_type}_credentials'] = credentials_to_dict(credentials)
 
-    return redirect(url_for('calendar_events'))
+    return redirect(url_for('calendar_events', api_type=api_type))
 
 @app.route('/calendar')
 def calendar_events():
-    # Load the credentials from the session
-    credentials = google_credentials.Credentials(**session['credentials'])
-
-    service = build('calendar', 'v3', credentials=credentials)
-
-    # Get the user's primary calendar events
-    events_result = service.events().list(calendarId='primary', maxResults=10).execute()
-    events = events_result.get('items', [])
-
-    # Display the events
-    events_list = '<h1>Upcoming Events</h1>'
-    if not events:
-        events_list += '<p>No upcoming events found.</p>'
-    for event in events:
-        start = event['start'].get('dateTime', event['start'].get('date'))
-        events_list += f'<p>{start} - {event["summary"]}</p>'
-
-    return events_list
+        # Collect credentials for both Google and Outlook from the session
+    credentials_dict = { 
+        'google': session.get('google_credentials') if 'google_credentials' in session else None,
+        'outlook': session.get('outlook_credentials') if 'outlook_credentials' in session else None
+    }
+    
+    credentials_dict = {api_type: creds for api_type, creds in credentials_dict.items() if creds}
+    
+    # Initialize clients for both Google and Outlook
+    clients = CalendarClientFactory.get_clients(credentials_dict)
+    
+    events = {}
+    for api_type, client in clients.items():
+        # Fetch events for the next 10 days from each calendar
+        events[api_type] = client.get_events('primary', '10')
+    
+    return jsonify(events)
 
 def credentials_to_dict(credentials):
     return {
