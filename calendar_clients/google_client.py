@@ -9,14 +9,14 @@ class GoogleCalendarClient(CalendarClient):
 
     def create_event(self, calendar_id, event):
         event = self.service.events().insert(calendarId=calendar_id, body=event).execute()
-        return event
+        return 'Done! See your new event here: ' + event['htmlLink']
 
     def delete_event(self, calendar_id, event_id):
         self.service.events().delete(calendarId=calendar_id, eventId=event_id).execute()
 
     def update_event(self, calendar_id, event_id, event):
         event = self.service.events().update(calendarId=calendar_id, eventId=event_id, body=event).execute()
-        return event
+        return 'Done! See your updated event here: ' + event['htmlLink']
     
     def get_events(self, calendar_id, max_results=10):
         events_result = self.service.events().list(calendarId=calendar_id, maxResults=max_results).execute()
