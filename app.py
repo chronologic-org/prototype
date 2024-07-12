@@ -81,7 +81,7 @@ def callback(api_type: str):
 
 @app.route('/calendar')
 def calendar_events():
-        # Collect credentials for both Google and Outlook from the session
+    # Collect credentials for both Google and Outlook from the session
     credentials_dict = { 
         'google': session.get('google_credentials') if 'google_credentials' in session else None,
         'outlook': session.get('outlook_credentials') if 'outlook_credentials' in session else None
