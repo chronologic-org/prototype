@@ -1,7 +1,7 @@
 from flask import Flask, jsonify, request, redirect, url_for, session
-from flask_session import Session
 from google.oauth2 import credentials as google_credentials
 from google_auth_oauthlib.flow import Flow
+from googleapiclient.discovery import build
 import os
 from dotenv import load_dotenv
 
@@ -15,9 +15,13 @@ app = Flask(__name__)
 # Set the secret key from the .env file
 app.secret_key = os.getenv('SECRET_KEY')
 
-# Configure server-side session storage
-app.config['SESSION_TYPE'] = 'filesystem'
-Session(app)
+# Ensure session cookies are configured correctly
+app.config.update(
+    SESSION_COOKIE_NAME='chronologic_session',
+    SESSION_COOKIE_SECURE=False,  # Set to True in production
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',  # Adjust as needed
+)
 
 # Path to the credentials JSON file
 CREDENTIALS_FILE = os.getenv('CREDENTIALS_FILE')
@@ -55,13 +59,12 @@ def authorize(api_type: str):
     # Debugging statements
     print(f"State set in session: {state}")
     print(f"Authorization URL: {authorization_url}")
-    print(f"Session before redirect: {session}")
     
     return redirect(authorization_url)
 
 @app.route('/<api_type>/callback')
 def callback(api_type: str):
-    print(f"Session in callback: {session}")  # Debug statement
+    print(session)  # Debug statement
     state = session.get('state')
     if not state:
         return 'State not found in session', 400

@@ -1,5 +1,5 @@
 import pytest
-from calendar_service import CalendarService
+from services.calendar_service import CalendarService
 
 @pytest.fixture
 def calendar_service():
