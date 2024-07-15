@@ -39,7 +39,7 @@ class GoogleCalendarClient(CalendarClient):
         event = self.service.events().insert(calendarId=calendar_id, body=event).execute()
         return event['htmlLink']
 
-    def delete_event(self, calendar_id, event_id):
+    def delete_event(self, event_id, calendar_id='primary'):
         """
         Deletes an event from the specified calendar.
 
@@ -50,7 +50,7 @@ class GoogleCalendarClient(CalendarClient):
         if self.service:
             self.service.events().delete(calendarId=calendar_id, eventId=event_id).execute()
 
-    def update_event(self, calendar_id, event_id, event):
+    def update_event(self, event_name, updated_event, calendar_id='primary'):
         """
         Updates an existing event in the specified calendar.
 
@@ -62,12 +62,20 @@ class GoogleCalendarClient(CalendarClient):
         Returns:
             str: A message indicating that the event has been updated, along with the HTML link to the updated event.
         """
-        if self.service:
-            event = self.service.events().update(calendarId=calendar_id, eventId=event_id, body=event).execute()
-            return 'Done! See your updated event here: ' + event['htmlLink']
-        return 'dummy_link'  # For testing without actual Google service
+        if not self.service:
+            return 'dummy_link'  # For testing without actual Google service
+        
+        events_result = self.service.events().list(calendarId=calendar_id, q=event_name).execute()
+        events = events_result.get('items', [])
+        
+        if not events:
+            raise ValueError(f"No event found with the name '{event_name}'")
+        
+        event_id = events[0]['id']  # Assuming the first match is the correct one
+        event = self.service.events().update(calendarId=calendar_id, eventId=event_id, body=updated_event).execute()
+        return event['htmlLink']
 
-    def get_events(self, calendar_id, max_results=10):
+    def get_events(self, max_results=10, calendar_id='primary'):
         """
         Retrieves a list of events from the specified calendar.
 

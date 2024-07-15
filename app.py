@@ -1,11 +1,11 @@
 from flask import Flask, jsonify, request, redirect, url_for, session
 from flask_session import Session
-from google.oauth2 import credentials as google_credentials
+from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 import os
 from dotenv import load_dotenv
-
 from calendar_clients import CalendarClientFactory
+from services.calendar_service import CalendarService
 
 # Load environment variables from .env file
 load_dotenv()
@@ -22,6 +22,7 @@ app.config['SESSION_PERMANENT'] = False
 app.config['SESSION_USE_SIGNER'] = True
 app.config['SESSION_KEY_PREFIX'] = 'flask_session:'  # Adding prefix to session keys
 app.config.update(SESSION_COOKIE_SAMESITE="None", SESSION_COOKIE_SECURE=True) #important for the authentication, not sure why
+
 Session(app)
 
 # Path to the credentials JSON file
@@ -41,6 +42,11 @@ def index():
 
 @app.route('/authorize/<api_type>')
 def authorize(api_type: str):
+    
+    if 'google_credentials' in session:
+        # User is already authenticated
+        return redirect(url_for('calendar_events'))
+    
     if api_type == 'google':
         flow = Flow.from_client_secrets_file(CREDENTIALS_FILE, scopes=SCOPES)
     else:
@@ -93,6 +99,8 @@ def callback(api_type: str):
     credentials = flow.credentials
     session[f'{api_type}_credentials'] = credentials_to_dict(credentials)
 
+    print(f"Session after storing credentials: {session}")  # Debug statement
+
     return redirect(url_for('calendar_events'))
 
 @app.route('/calendar')
@@ -104,14 +112,30 @@ def calendar_events():
     }
 
     credentials_dict = {api_type: creds for api_type, creds in credentials_dict.items() if creds}
-
-    # Initialize clients for both Google and Outlook
-    clients = CalendarClientFactory.get_clients(credentials_dict)
+    
+    calendar_service = CalendarService(credentials_dict)
+    api_types = ['google']
+    event = {
+        'summary': 'Integration Test Event',
+        'location': 'Integration Test Location',
+        'description': 'An event created by an integration test',
+        'start': {
+            'dateTime': '2024-07-01T10:00:00-07:00',
+            'timeZone': 'America/Los_Angeles',
+        },
+        'end': {
+            'dateTime': '2024-07-01T12:00:00-07:00',
+            'timeZone': 'America/Los_Angeles',
+        },
+    }
+    # result = calendar_service.create_event(api_types, event) #test event creation
+    result = calendar_service.update_event(api_types, 'Integration Test Event', event) #test event update
+    print(result)  # Print the result to see the event URL
 
     events = {}
-    for api_type, client in clients.items():
+    for api_type, client in calendar_service.clients.items():
         # Fetch events for the next 10 days from each calendar
-        events[api_type] = client.get_events('primary', '10')
+        events[api_type] = client.get_events()
 
     return jsonify(events)
 
@@ -126,4 +150,6 @@ def credentials_to_dict(credentials):
     }
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    with app.app_context():
+        app.run(debug=True)
+        
