@@ -1,3 +1,4 @@
+from calendar_clients import CalendarClientFactory
 from calendar_clients.google_client import GoogleCalendarClient
 
 class CalendarService():
@@ -8,12 +9,8 @@ class CalendarService():
         api_to_client_map (dict): A mapping of calendar API types to their respective client classes.
     """
 
-    def __init__(self):
-        self.api_to_client_map = {
-            'google': GoogleCalendarClient,
-            # TODO
-            # 'outlook': OutlookCalendarClient
-        }
+    def __init__(self, credentials_dict):
+        self.clients = CalendarClientFactory.get_clients(credentials_dict)
         
     def create_event(self, api_types, event):
         """
@@ -28,7 +25,9 @@ class CalendarService():
         """
         urls = []
         for api_type in api_types:
-            client = self.api_to_client_map[api_type]
+            if api_type not in self.clients:
+                raise KeyError(f'Client for API type {api_type} not found')
+            client = self.clients[api_type]
             urls.append(client.create_event(event))
             
         return 'Done! See your event here: ' + ', '.join(urls)
