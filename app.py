@@ -129,8 +129,9 @@ def calendar_events():
         },
     }
     # result = calendar_service.create_event(api_types, event) #test event creation
-    result = calendar_service.update_event(api_types, 'Integration Test Event', event) #test event update
-    print(result)  # Print the result to see the event URL
+    # result = calendar_service.update_event(api_types, 'Integration Test Event', event) #test event update
+    # result = calendar_service.delete_event(api_types, 'Integration Test Event') #test event deletion
+    # print(result)  # Print the result to see the event URL
 
     events = {}
     for api_type, client in calendar_service.clients.items():

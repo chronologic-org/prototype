@@ -37,9 +37,11 @@ class GoogleCalendarClient(CalendarClient):
         if not self.service:
             return 'dummy_link'  # For testing without actual Google service
         event = self.service.events().insert(calendarId=calendar_id, body=event).execute()
-        return event['htmlLink']
+        calendar_email = event['organizer']['email']
 
-    def delete_event(self, event_id, calendar_id='primary'):
+        return event['htmlLink'] + f'&authuser={calendar_email}'
+
+    def delete_event(self, event_name, calendar_id='primary'):
         """
         Deletes an event from the specified calendar.
 
@@ -47,8 +49,19 @@ class GoogleCalendarClient(CalendarClient):
             calendar_id (str): The ID of the calendar containing the event.
             event_id (str): The ID of the event to delete.
         """
-        if self.service:
-            self.service.events().delete(calendarId=calendar_id, eventId=event_id).execute()
+        if not self.service:
+            return 'dummy_link'  # For testing without actual Google service
+        
+        events_result = self.service.events().list(calendarId=calendar_id, q=event_name).execute()
+        events = events_result.get('items', [])
+        
+        if not events:
+            raise ValueError(f"No event found with the name '{event_name}'")
+        
+        event_id = events[0]['id']  # Assuming the first match is the correct one
+        calendar_email = events[0]['organizer']['email']
+        self.service.events().delete(calendarId=calendar_id, eventId=event_id).execute()
+        return f"https://calendar.google.com/calendar?authuser={calendar_email}"
 
     def update_event(self, event_name, updated_event, calendar_id='primary'):
         """
@@ -72,8 +85,9 @@ class GoogleCalendarClient(CalendarClient):
             raise ValueError(f"No event found with the name '{event_name}'")
         
         event_id = events[0]['id']  # Assuming the first match is the correct one
+        calendar_email = events[0]['organizer']['email']
         event = self.service.events().update(calendarId=calendar_id, eventId=event_id, body=updated_event).execute()
-        return event['htmlLink']
+        return event['htmlLink'] + f'&authuser={calendar_email}'
 
     def get_events(self, max_results=10, calendar_id='primary'):
         """

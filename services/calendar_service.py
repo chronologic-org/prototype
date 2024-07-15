@@ -53,4 +53,22 @@ class CalendarService():
             
         return 'Done! See your updated event here: ' + ', '.join(urls)
     
+    def delete_event(self, api_types, event_name):
+        """
+        Deletes an event from multiple calendar APIs.
+
+        Args:
+            api_types (list): A list of calendar API types to delete the event from.
+            event_name (str): The name of the event to delete.
+
+        Returns:
+            str: A message indicating the success of the operation.
+        """
+        for api_type in api_types:
+            if api_type not in self.clients:
+                raise KeyError(f'Client for API type {api_type} not found')
+            client = self.clients[api_type]
+            url = client.delete_event(event_name)
+            
+        return 'Done! The event has been deleted. See your calendar: ' + url
             
