@@ -163,4 +163,4 @@ cython_debug/
 
 
 secrets/
-flask_session/
+.flask_session/
