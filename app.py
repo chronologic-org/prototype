@@ -1,4 +1,5 @@
 from flask import Flask, jsonify, request, redirect, url_for, session
+from flask_cors import CORS, cross_origin
 from flask_session import Session
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
@@ -11,6 +12,7 @@ from services.calendar_service import CalendarService
 load_dotenv()
 
 app = Flask(__name__)
+CORS(app, origins=['http://localhost:8501'], supports_credentials=True, withCredentials=True)  # Enable CORS and allow credentials
 
 # Set the secret key from the .env file
 app.secret_key = os.getenv('SECRET_KEY')
@@ -21,7 +23,7 @@ app.config['SESSION_FILE_DIR'] = './.flask_session/'
 app.config['SESSION_PERMANENT'] = False
 app.config['SESSION_USE_SIGNER'] = True
 app.config['SESSION_KEY_PREFIX'] = 'flask_session:'  # Adding prefix to session keys
-app.config.update(SESSION_COOKIE_SAMESITE="None", SESSION_COOKIE_SECURE=False) #important for the authentication, not sure why
+app.config.update(SESSION_COOKIE_SAMESITE="None", SESSION_COOKIE_SECURE=True) #important for the authentication, not sure why
 
 Session(app)
 
@@ -37,6 +39,8 @@ REDIRECT_URI = os.getenv('REDIRECT_URI')
 STREAMLIT_URL = os.getenv('STREAMLIT_URL')
 
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"  # Enable HTTP (insecure) for local testing
+
+calendar_service = None
 
 @app.route('/')
 def index():
@@ -109,9 +113,6 @@ def callback(api_type: str):
     # return redirect(url_for('calendar_events'))
     return redirect(f'{STREAMLIT_URL}/?authorized=true')
 
-@app.route('get_credentials')
-def get_credentials():
-    return jsonify(session)
 
 @app.route('/calendar')
 def calendar_events():
@@ -124,6 +125,8 @@ def calendar_events():
     credentials_dict = {api_type: creds for api_type, creds in credentials_dict.items() if creds}
     
     calendar_service = CalendarService(credentials_dict)
+    print(session)
+    print(f"Calendar service clients: {calendar_service.clients}")  # Debug statement
     api_types = ['google']
     event = {
         'summary': 'Integration Test Event',
@@ -147,7 +150,8 @@ def calendar_events():
     for api_type, client in calendar_service.clients.items():
         # Fetch events for the next 10 days from each calendar
         events[api_type] = client.get_events()
-
+        
+    print(events)
     return jsonify(events)
 
 def credentials_to_dict(credentials):

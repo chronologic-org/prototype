@@ -5,10 +5,11 @@ from services import llm_service
 from streamlit_cookies_manager import EncryptedCookieManager
 from services.calendar_service import CalendarService
 
-calendar_service = None
+# calendar = None
 
 #Initiate the cookie manager
 cookies = EncryptedCookieManager(prefix="cal1", password="password")
+session = requests.Session()
 
 if not cookies.ready():
     st.stop()
@@ -17,14 +18,6 @@ def initiate_authorization():
     auth_url = 'http://localhost:5000/authorize/google'
     return auth_url
 
-def initiate_calendar_service():
-    google_credentials = session.get('google_credentials')
-    credentials_dict = {
-        'google': google_credentials
-    }  
-    calendar_service = CalendarService(credentials_dict)
-    return calendar_service
-    
     
 
 # Function to pick 3 unique suggestions
@@ -99,7 +92,7 @@ if 'authorized' in query_params and not st.session_state.logged_in:
     st.session_state.logged_in = True
     cookies['authorized'] = 'true'
     st.sidebar.success("Authorization successful. You can now fetch calendar events.")
-    st.experimental_set_query_params()
+    st.query_params = {}
 
 cookies.save()
 
@@ -114,12 +107,11 @@ with st.sidebar:
             """, unsafe_allow_html=True)
     else:
         st.success("Logged in to Google Calendar")
-        calendar_service = initiate_calendar_service()
         if st.button('Logout'):
             cookies['authorized'] = 'false'
             cookies.save()
             st.session_state.logged_in = False
-            st.experimental_rerun()
+            st.rerun()
 
 # Start state for chat responses
 if "messages" not in st.session_state:
@@ -147,8 +139,10 @@ if prompt:
 
     # Chatbot response
     response = llm_service.chat(prompt, llm)
-    response = {item for item in response if item != 'function_to_call'}
-    # calendar_service.create_event(api_type='google', event=response)
+    function_to_call = response["function_to_call"]
+    del response['function_to_call']
+    # output = calendar.create_event(api_types=['google'], event=response)
+    requests.get("http://localhost:5000/test")
     with st.chat_message("Assistant", avatar="🤖"):
         st.markdown(response)
     st.session_state.messages.append({"role": "assistant", "content": response})
