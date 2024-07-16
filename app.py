@@ -109,6 +109,10 @@ def callback(api_type: str):
     # return redirect(url_for('calendar_events'))
     return redirect(f'{STREAMLIT_URL}/?authorized=true')
 
+@app.route('get_credentials')
+def get_credentials():
+    return jsonify(session)
+
 @app.route('/calendar')
 def calendar_events():
     # Collect credentials for both Google and Outlook from the session
