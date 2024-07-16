@@ -10,9 +10,10 @@ def init_llm():
         temperature=0.7,
         model='mixtral-8x7b-32768',
         api_key=os.getenv('GROQ_API_KEY'),
-        stop_sequences=['```', '\n\n'],
     )
-    return llm
+    
+    structured_llm = llm.with_structured_output(method="json_mode")
+    return structured_llm
 
 def chat(prompt: str, llm: ChatGroq):
     system = """
@@ -29,12 +30,11 @@ def chat(prompt: str, llm: ChatGroq):
     create_event(self, api_types, event)
     }}
 
-    Set api_type to google by DEFAULT.
-
     You MUST provide your response in the following JSON Schema below depending on what you think the user is trying to do. If you are not given enough information for a certain portion of the JSON Schema leave it blank. You MUST take the types of the OUTPUT SCHEMA into account and adjust your provided text to fit the required types:
 
     Here is the OUTPUT SCHEMA for creating and updating an event:
     {{
+    "function_to_call": "",
     "summary": "",
     "location": "",
     "description": ".",
@@ -62,16 +62,18 @@ def chat(prompt: str, llm: ChatGroq):
 
     Here is the OUTPUT SCHEMA for deleting an event:
     {{
+    "function_to_call": "",
     "summary": ""
     }}
     """
 
     human = "{text}"
-    prompt_template = ChatPromptTemplate.from_messages([("system", system), ("human", human)])
+    ai = '```json \n'
+    prompt_template = ChatPromptTemplate.from_messages([("system", system), ("human", human), ("ai", ai)])
 
     chain = prompt_template | llm
     output = chain.invoke({"text": prompt})
-    return output.content
+    return output
     
 if __name__ == '__main__':
     llm = init_llm()
