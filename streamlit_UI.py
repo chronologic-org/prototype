@@ -1,5 +1,17 @@
 import streamlit as st
-import random
+import random, requests
+from services import llm_service
+from streamlit_cookies_manager import EncryptedCookieManager
+
+#Initiate the cookie manager
+cookies = EncryptedCookieManager(prefix="cal1", password="password")
+
+if not cookies.ready():
+    st.stop()
+
+def initiate_authorization():
+    auth_url = 'http://localhost:5000/authorize/google'
+    return auth_url
 
 # Function to pick 3 unique suggestions
 def pick_suggestions(recommended_suggestions):
@@ -43,6 +55,12 @@ suggestion, suggestion2, suggestion3 = st.session_state.picked_suggestions
 # Title and button stickiness
 st.title(':orange[cal.1] conversation :calendar:')
 
+@st.cache_resource
+def init_llm():
+    return llm_service.init_llm()
+
+llm = init_llm()
+
 # Define buttons in columns
 col1, col2, col3 = st.columns(3)
 with st.container():
@@ -56,16 +74,39 @@ with st.container():
 #Start Log in state
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
+    
+# Check if the user is authorized using cookies
+if not st.session_state.logged_in and cookies.get('authorized') == 'true':
+    st.session_state.logged_in = True
+
+
+query_params = st.experimental_get_query_params()
+if 'authorized' in query_params and not st.session_state.logged_in:
+    st.session_state.logged_in = True
+    cookies['authorized'] = 'true'
+    st.sidebar.success("Authorization successful. You can now fetch calendar events.")
+    st.experimental_set_query_params()
+
+cookies.save()
 
 with st.sidebar:
     st.title(":orange[Gcal] Login")
-    if st.session_state.logged_in:
-        st.sidebar.success("Logged in to Google Calendar")
-        logout_button = st.button("Logout")
-        #if log out button pressed and true - take out of GCal - make sure session state is changed to logged in
+    if not st.session_state.logged_in:
+        if st.button('Authorize Google Calendar'):
+            auth_url = initiate_authorization()
+            st.markdown(f"""
+                <meta http-equiv="refresh" content="0; url={auth_url}">
+                If you are not redirected automatically, <a href="{auth_url}">click here</a>.
+            """, unsafe_allow_html=True)
     else:
-        login_button = st.button("Login")
-        #if login_button pressed and true - take to authentication page
+        st.success("Logged in to Google Calendar")
+        if st.button('Logout'):
+            cookies['authorized'] = 'false'
+            cookies.save()
+            st.session_state.logged_in = False
+            st.experimental_rerun()
+
+print(st.session_state.logged_in, cookies)
 
 # Start state for chat responses
 if "messages" not in st.session_state:
@@ -92,7 +133,7 @@ if prompt:
     st.session_state.messages.append({"role": "user", "content": prompt})
 
     # Chatbot response
-    response = f"Echo: {prompt}"
+    response = llm_service.chat(prompt, llm)
     with st.chat_message("Assistant", avatar="🤖"):
         st.markdown(response)
     st.session_state.messages.append({"role": "assistant", "content": response})

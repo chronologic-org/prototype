@@ -21,7 +21,7 @@ app.config['SESSION_FILE_DIR'] = './.flask_session/'
 app.config['SESSION_PERMANENT'] = False
 app.config['SESSION_USE_SIGNER'] = True
 app.config['SESSION_KEY_PREFIX'] = 'flask_session:'  # Adding prefix to session keys
-app.config.update(SESSION_COOKIE_SAMESITE="None", SESSION_COOKIE_SECURE=True) #important for the authentication, not sure why
+app.config.update(SESSION_COOKIE_SAMESITE="None", SESSION_COOKIE_SECURE=False) #important for the authentication, not sure why
 
 Session(app)
 
@@ -34,6 +34,8 @@ SCOPES = [os.getenv('SCOPES')]
 # Redirect URI for OAuth 2.0
 REDIRECT_URI = os.getenv('REDIRECT_URI')
 
+STREAMLIT_URL = os.getenv('STREAMLIT_URL')
+
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"  # Enable HTTP (insecure) for local testing
 
 @app.route('/')
@@ -42,11 +44,13 @@ def index():
 
 @app.route('/authorize/<api_type>')
 def authorize(api_type: str):
-    
+    print(f"Session in authorize: {session}")  # Debug statement
+    print(session.get('google_credentials'))  # Debug statement
     if 'google_credentials' in session:
         # User is already authenticated
-        return redirect(url_for('calendar_events'))
-    
+        # return redirect(url_for('calendar_events'))
+        return redirect(f'{STREAMLIT_URL}/?authorized=true')
+
     if api_type == 'google':
         flow = Flow.from_client_secrets_file(CREDENTIALS_FILE, scopes=SCOPES)
     else:
@@ -61,6 +65,7 @@ def authorize(api_type: str):
 
     session['state'] = state
     session['api_type'] = api_type
+    session.modified = True
 
     # Debugging statements
     print(f"State set in session: {state}")
@@ -101,7 +106,8 @@ def callback(api_type: str):
 
     print(f"Session after storing credentials: {session}")  # Debug statement
 
-    return redirect(url_for('calendar_events'))
+    # return redirect(url_for('calendar_events'))
+    return redirect(f'{STREAMLIT_URL}/?authorized=true')
 
 @app.route('/calendar')
 def calendar_events():

@@ -9,7 +9,8 @@ def init_llm():
     llm = ChatGroq(
         temperature=0.7,
         model='mixtral-8x7b-32768',
-        api_key=os.getenv('GROQ_API_KEY'), 
+        api_key=os.getenv('GROQ_API_KEY'),
+        stop_sequences=['```', '\n\n'],
     )
     return llm
 
@@ -70,9 +71,10 @@ def chat(prompt: str, llm: ChatGroq):
 
     chain = prompt_template | llm
     output = chain.invoke({"text": prompt})
-    print(output)
+    return output.content
     
 if __name__ == '__main__':
     llm = init_llm()
     user_input = input("Enter your prompt: ")
     chat(user_input, llm)
+
