@@ -5,16 +5,19 @@ import os
 
 load_dotenv()
 
-llm = ChatGroq(
-    temperature=0.7,
-    model='mixtral-8x7b-32768',
-    api_key= os.getenv('GROQ_API_KEY'), 
-)
+def init_llm():
+    llm = ChatGroq(
+        temperature=0.7,
+        model='mixtral-8x7b-32768',
+        api_key= os.getenv('GROQ_API_KEY'), 
+    )
+    return llm
 
-system = "You are a helpful assistant."
-human = "{text}"
-prompt = ChatPromptTemplate.from_messages([("system", system), ("human", human)])
+def chat(prompt: str, llm: ChatGroq):
+    system = "You are a helpful assistant."
+    human = "{text}"
+    prompt = ChatPromptTemplate.from_messages([("system", system), ("human", human)])
 
-chain = prompt | llm
-output = chain.invoke({"text": "Explain the importance of low latency for LLMs."})
-print(output)
+    chain = prompt | llm
+    output = chain.invoke({"text": prompt})
+    print(output)
