@@ -53,7 +53,21 @@ with st.container():
     with col3:
         button3 = st.button(suggestion3)
 
-# Start state
+#Start Log in state
+if 'logged_in' not in st.session_state:
+    st.session_state.logged_in = False
+
+with st.sidebar:
+    st.title(":orange[Gcal] Login")
+    if st.session_state.logged_in:
+        st.sidebar.success("Logged in to Google Calendar")
+        logout_button = st.button("Logout")
+        #if log out button pressed and true - take out of GCal - make sure session state is changed to logged in
+    else:
+        login_button = st.button("Login")
+        #if login_button pressed and true - take to authentication page
+
+# Start state for chat responses
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
