@@ -107,6 +107,9 @@ with st.sidebar:
             """, unsafe_allow_html=True)
     else:
         st.success("Logged in to Google Calendar")
+        response = requests.get("http://localhost:5000/get_credentials")
+        response = response.json()
+        st.success(response)
         if st.button('Logout'):
             cookies['authorized'] = 'false'
             cookies.save()
@@ -142,7 +145,6 @@ if prompt:
     function_to_call = response["function_to_call"]
     del response['function_to_call']
     # output = calendar.create_event(api_types=['google'], event=response)
-    requests.get("http://localhost:5000/test")
     with st.chat_message("Assistant", avatar="🤖"):
         st.markdown(response)
     st.session_state.messages.append({"role": "assistant", "content": response})

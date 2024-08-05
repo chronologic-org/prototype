@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request, redirect, url_for, session
+from flask import Flask, json, jsonify, request, redirect, url_for, session
 from flask_cors import CORS, cross_origin
 from flask_session import Session
 from google.oauth2.credentials import Credentials
@@ -38,9 +38,12 @@ REDIRECT_URI = os.getenv('REDIRECT_URI')
 
 STREAMLIT_URL = os.getenv('STREAMLIT_URL')
 
+# Path to the credentials JSON file
+CREDENTIALS_STORAGE_FILE = 'google_credentials.json'
+
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"  # Enable HTTP (insecure) for local testing
 
-calendar_service = None
+calendar_credentials = None
 
 @app.route('/')
 def index():
@@ -53,6 +56,7 @@ def authorize(api_type: str):
     if 'google_credentials' in session:
         # User is already authenticated
         # return redirect(url_for('calendar_events'))
+        calendar_credentials = session.get('google_credentials')
         return redirect(f'{STREAMLIT_URL}/?authorized=true')
 
     if api_type == 'google':
@@ -107,12 +111,18 @@ def callback(api_type: str):
     # Store the credentials in the session
     credentials = flow.credentials
     session[f'{api_type}_credentials'] = credentials_to_dict(credentials)
+    
+    with open(CREDENTIALS_STORAGE_FILE, 'w') as f:
+        json.dump(credentials_to_dict(credentials), f)
 
     print(f"Session after storing credentials: {session}")  # Debug statement
-
+    calendar_credentials = session.get('google_credentials')
     # return redirect(url_for('calendar_events'))
     return redirect(f'{STREAMLIT_URL}/?authorized=true')
 
+@app.route('/get_credentials')
+def get_credentials():
+    return jsonify(calendar_credentials)
 
 @app.route('/calendar')
 def calendar_events():
@@ -123,8 +133,8 @@ def calendar_events():
     }
 
     credentials_dict = {api_type: creds for api_type, creds in credentials_dict.items() if creds}
-    
     calendar_service = CalendarService(credentials_dict)
+    
     print(session)
     print(f"Calendar service clients: {calendar_service.clients}")  # Debug statement
     api_types = ['google']
