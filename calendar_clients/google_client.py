@@ -16,7 +16,7 @@ class GoogleCalendarClient(CalendarClient):
 
     def __init__(self, credentials=None):
         if credentials:
-            self.credentials = google_credentials.Credentials(**credentials)
+            self.credentials = google_credentials.Credentials(credentials)
             self.service = build('calendar', 'v3', credentials=self.credentials)
         else:
             # Handle case when no credentials are provided, e.g., for testing purposes
