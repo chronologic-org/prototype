@@ -71,4 +71,25 @@ class CalendarService():
             url = client.delete_event(event_name)
             
         return 'Done! The event has been deleted. See your calendar: ' + url
+    
+    def get_events(self, api_types, calendar_id='primary', max_results=10):
+        """
+        Retrieves events from multiple calendar APIs.
+
+        Args:
+            api_types (list): A list of calendar API types to retrieve events from.
+            calendar_id (str, optional): The ID of the calendar to retrieve events from. Defaults to 'primary'.
+            max_results (int, optional): The maximum number of results to return. Defaults to 10.
+
+        Returns:
+            list: A list of event details.
+        """
+        events = []
+        for api_type in api_types:
+            if api_type not in self.clients:
+                raise KeyError(f'Client for API type {api_type} not found')
+            client = self.clients[api_type]
+            events.extend(client.get_events(calendar_id, max_results))
+            
+        return events
             

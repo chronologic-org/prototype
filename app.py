@@ -1,3 +1,4 @@
+import json
 from flask import Flask, jsonify, request, session, redirect
 # from flask_cors import CORS
 # from flask_session import Session
@@ -59,8 +60,8 @@ def callback():
     flow.fetch_token(authorization_response=authorization_response)
 
     credentials = flow.credentials
-    token = jwt.encode({'access_token': credentials.token}, 'SECRET_KEY', algorithm='HS256')
-#     session['google_credentials'] = credentials_to_dict(credentials)
+    token = jwt.encode(credentials_to_dict(credentials), app.secret_key, algorithm='HS256')
+    #     session['google_credentials'] = credentials_to_dict(credentials)
     
 #     # Debugging print statement
 #     print("Stored credentials in session:", session['google_credentials'])
@@ -71,7 +72,7 @@ def token_required(f):
     def wrap(*args, **kwargs):
         token = request.headers.get('Authorization').split()[1]
         try:
-            jwt.decode(token, 'SECRET_KEY', algorithms=['HS256'])
+            jwt.decode(token, app.secret_key, algorithms=['HS256'])
         except:
             return jsonify({'message': 'Token is invalid!'}), 403
         return f(*args, **kwargs)
@@ -88,26 +89,34 @@ def token_required(f):
 @token_required
 def calendar_events():
     token = request.headers.get('Authorization').split()[1]
-    decoded = jwt.decode(token, 'SECRET_KEY', algorithms=['HS256'])
-    creds = Credentials(decoded['access_token'])
+    decoded = jwt.decode(token, app.secret_key, algorithms=['HS256'])
+    print("Decoded token:", decoded)
+    creds = Credentials(**decoded)
+    #     token=decoded['token'],
+    #     refresh_token=decoded['refresh_token'],
+    #     token_uri=decoded['token_uri'],
+    #     client_id=decoded['client_id'],
+    #     client_secret=decoded['client_secret'],
+    #     scopes=decoded['scopes']  # Ensure this is a list of strings
+    # )
     
     # Assuming CalendarService is correctly implemented
-    calendar_service = CalendarService({'google': creds})
-    events = calendar_service.get_events()
+    calendar_service = CalendarService({'google': decoded})
+    events = calendar_service.get_events(api_types=['google'])
     
     # Debugging print statement
     print("Events retrieved:", events)
     return jsonify(events)
 
-# def credentials_to_dict(credentials):
-#     return {
-#         'token': credentials.token,
-#         'refresh_token': credentials.refresh_token,
-#         'token_uri': credentials.token_uri,
-#         'client_id': credentials.client_id,
-#         'client_secret': credentials.client_secret,
-#         'scopes': credentials.scopes
-#     }
+def credentials_to_dict(credentials):
+    return {
+        'token': credentials.token,
+        'refresh_token': credentials.refresh_token,
+        'token_uri': credentials.token_uri,
+        'client_id': credentials.client_id,
+        'client_secret': credentials.client_secret,
+        'scopes': credentials.scopes
+    }
 
 if __name__ == '__main__':
     app.run(debug=True)

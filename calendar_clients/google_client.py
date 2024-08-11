@@ -16,7 +16,7 @@ class GoogleCalendarClient(CalendarClient):
 
     def __init__(self, credentials=None):
         if credentials:
-            self.credentials = google_credentials.Credentials(credentials)
+            self.credentials = google_credentials.Credentials(**credentials)
             self.service = build('calendar', 'v3', credentials=self.credentials)
         else:
             # Handle case when no credentials are provided, e.g., for testing purposes
@@ -89,7 +89,7 @@ class GoogleCalendarClient(CalendarClient):
         event = self.service.events().update(calendarId=calendar_id, eventId=event_id, body=updated_event).execute()
         return event['htmlLink'] + f'&authuser={calendar_email}'
 
-    def get_events(self, max_results=10, calendar_id='primary'):
+    def get_events(self, calendar_id='primary', max_results=10):
         """
         Retrieves a list of events from the specified calendar.
 
