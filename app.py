@@ -1,3 +1,4 @@
+from functools import wraps
 import json
 from flask import Flask, jsonify, request, session, redirect
 # from flask_cors import CORS
@@ -9,6 +10,7 @@ import jwt
 import os
 from dotenv import load_dotenv
 from services.calendar_service import CalendarService
+from services import llm_service
 
 # Load environment variables from .env file
 load_dotenv()
@@ -39,6 +41,8 @@ STREAMLIT_URL = os.getenv('STREAMLIT_URL')
 
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"  # Enable HTTP (insecure) for local testing
 
+llm = llm_service.init_llm()
+
 @app.route('/')
 def index():
     return 'Welcome to Chronologic!'
@@ -60,15 +64,12 @@ def callback():
     flow.fetch_token(authorization_response=authorization_response)
 
     credentials = flow.credentials
-    token = jwt.encode(credentials_to_dict(credentials), app.secret_key, algorithm='HS256')
-    #     session['google_credentials'] = credentials_to_dict(credentials)
-    
-#     # Debugging print statement
-#     print("Stored credentials in session:", session['google_credentials'])
-
+    credentials = credentials_to_dict(credentials)
+    token = jwt.encode(credentials, app.secret_key, algorithm='HS256')
     return redirect(f'{STREAMLIT_URL}/?token={token}')
 
 def token_required(f):
+    @wraps(f)
     def wrap(*args, **kwargs):
         token = request.headers.get('Authorization').split()[1]
         try:
@@ -77,13 +78,6 @@ def token_required(f):
             return jsonify({'message': 'Token is invalid!'}), 403
         return f(*args, **kwargs)
     return wrap
-
-# @app.route('/get_credentials')
-# def get_credentials():
-#     google_credentials = session.get('google_credentials')
-#     # Debugging print statement
-#     print("Retrieved credentials from session:", google_credentials)
-#     return jsonify(google_credentials)
 
 @app.route('/calendar')
 @token_required
@@ -117,6 +111,70 @@ def credentials_to_dict(credentials):
         'client_secret': credentials.client_secret,
         'scopes': credentials.scopes
     }
+
+@app.route('/chat', methods=['POST'])
+def chat():
+    data = request.get_json()
+    prompt = data.get('prompt')
+
+    if not prompt:
+        return jsonify({"error": "Prompt is required"}), 400
+    
+    response = llm_service.chat(prompt, llm)
+    return jsonify(response)
+
+@app.route('/create_event', methods=['POST'])
+@token_required
+def create_event():
+    token = request.headers.get('Authorization').split()[1]
+    decoded = jwt.decode(token, app.secret_key, algorithms=['HS256'])
+    data = request.get_json()
+    event = data.get('event')
+    api_types = ['google']
+
+    if not event:
+        return jsonify({"error": "Event is required"}), 400
+    if not api_types:
+        return jsonify({"error": "API types are required"}), 400
+    
+    calendar_service = CalendarService({'google': decoded})
+    response = calendar_service.create_event(api_types, event)
+    
+    return jsonify({"message": response})
+
+@app.route('/update_event', methods=['POST'])
+@token_required
+def update_event():
+    data = request.get_json()
+    event_name = data.get('event_name')
+    updated_event = data.get('updated_event')
+    api_types = ['google']
+
+    if not event_name:
+        return jsonify({"error": "Event name is required"}), 400
+    if not updated_event:
+        return jsonify({"error": "Updated event is required"}), 400
+    if not api_types:
+        return jsonify({"error": "API types are required"}), 400
+    
+    response = calendar_service.update_event(api_types, event_name, updated_event)
+    return jsonify({"message": response})
+
+@app.route('/delete_event', methods=['POST'])
+@token_required
+def delete_event():
+    data = request.get_json()
+    event_name = data.get('event_name')
+    api_types = ['google']
+
+    if not event_name:
+        return jsonify({"error": "Event name is required"}), 400
+    if not api_types:
+        return jsonify({"error": "API types are required"}), 400
+    
+    response = calendar_service.delete_event(api_types, event_name)
+    return jsonify({"message": response})
+    
 
 if __name__ == '__main__':
     app.run(debug=True)
