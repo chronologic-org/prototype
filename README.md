@@ -50,3 +50,11 @@ Since this is a test app, Google requires that users added as test users in orde
 ### Groq API
 
 You can find the Groq API key in the Groq platform. 
+
+## Future Improvements
+
+- [ ] update_events
+
+In its current form, the update_events function can change everyhting but the name of the event. This is because of the format of the llm response, which is the same as create_event. This means that we do not store the current name and return only the new name we want. 
+
+This will cause an issue since to find the event we need to update, we need to know its name. Thus, it is required to give the update_event function both the current and the new name. For this, update the response format in the prompt. 
