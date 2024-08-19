@@ -10,6 +10,9 @@ python -m venv .venv
 ### 0.2 Create environment file (.env)
 Since this is a secret file, it cannot be put on Github and thus, someone needs to share it directly. It contains all API and secret keys, credentials, etc. 
 
+### 0.3 Create secrets folder
+This is where the Google API credentials are stored. Create the folder in the main directory. Then, download the credentials file from Google Console, APIs & Services/Credentials. The file name is prototype_web_client. Download, rename to `credentials.json` and place inside the secrets folder. 
+
 ### 1. Activate Python environment
 
 Windows: 
@@ -58,3 +61,17 @@ You can find the Groq API key in the Groq platform.
 In its current form, the update_events function can change everyhting but the name of the event. This is because of the format of the llm response, which is the same as create_event. This means that we do not store the current name and return only the new name we want. 
 
 This will cause an issue since to find the event we need to update, we need to know its name. Thus, it is required to give the update_event function both the current and the new name. For this, update the response format in the prompt. 
+
+- [ ] Calendar instance
+
+Currently, a new Calendar object is initialized every time any of the create, update or delete functions are called. This is alright for now, but with higher volume of requests will slow down the app. Find a way to initialize the calendar once per user. 
+
+- [ ] Delete multiple events 
+
+Find a way to request the deletion of multiple events on a date. This will likely require a new reponse format as you need to return a data to delete events on, not the name of an event to delete. 
+
+- [ ] Error handling
+
+Handle different errors in the llm response such as malformed json fields. 
+
+*Example:* There is no recurrence requested, so the llm returns a json with recurrence where the recurrence fields are present, but they have no values. 
