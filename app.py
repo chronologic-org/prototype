@@ -1,11 +1,7 @@
 from functools import wraps
 import json
 from flask import Flask, jsonify, request, session, redirect
-# from flask_cors import CORS
-# from flask_session import Session
-from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
-from googleapiclient.discovery import build
 import jwt
 import os
 from dotenv import load_dotenv
@@ -17,16 +13,6 @@ load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY')
-# CORS(app, supports_credentials=True)
-
-# # Configure server-side session storage
-# app.config['SESSION_TYPE'] = 'filesystem'
-# app.config['SESSION_FILE_DIR'] = './.flask_session/'
-# app.config['SESSION_PERMANENT'] = False
-# app.config['SESSION_USE_SIGNER'] = True
-# app.config.update(SESSION_COOKIE_SAMESITE=None, SESSION_COOKIE_SECURE=False)
-
-# Session(app)
 
 # Path to the credentials JSON file
 CREDENTIALS_FILE = os.getenv('CREDENTIALS_FILE')
