@@ -30,7 +30,7 @@ def chat(prompt: str, llm: ChatGroq):
     create_event(self, api_types, event)
     }}
 
-    You MUST provide your response in the following JSON Schema below depending on what you think the user is trying to do. If you are not given enough information for a certain portion of the JSON Schema leave it blank. You MUST take the types of the OUTPUT SCHEMA into account and adjust your provided text to fit the required types:
+    You MUST provide your response in the following JSON Schema below depending on what you think the user is trying to do. If you are not given enough information for a certain portion of the JSON Schema, ommit it. You MUST take the types of the OUTPUT SCHEMA into account and adjust your provided text to fit the required types:
 
     Here is the OUTPUT SCHEMA for creating and updating an event:
     {{

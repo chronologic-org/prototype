@@ -84,23 +84,18 @@ def token_required(f):
 def calendar_events():
     token = request.headers.get('Authorization').split()[1]
     decoded = jwt.decode(token, app.secret_key, algorithms=['HS256'])
-    print("Decoded token:", decoded)
-    creds = Credentials(**decoded)
-    #     token=decoded['token'],
-    #     refresh_token=decoded['refresh_token'],
-    #     token_uri=decoded['token_uri'],
-    #     client_id=decoded['client_id'],
-    #     client_secret=decoded['client_secret'],
-    #     scopes=decoded['scopes']  # Ensure this is a list of strings
-    # )
-    
-    # Assuming CalendarService is correctly implemented
     calendar_service = CalendarService({'google': decoded})
-    events = calendar_service.get_events(api_types=['google'])
+    google_service = calendar_service.clients['google'].service
+    calendar = google_service.calendarList().get(calendarId='primary').execute()
+    calendar_id = calendar['id']
+    timezone = calendar['timeZone']
+    calendar_name = calendar['summary']
+    embed_link = f"https://calendar.google.com/calendar/embed?src={calendar_id}&ctz={timezone}"
     
-    # Debugging print statement
-    print("Events retrieved:", events)
-    return jsonify(events)
+    return jsonify({
+        'calendar_name': calendar_name,
+        'embed_link': embed_link
+    })
 
 def credentials_to_dict(credentials):
     return {
@@ -145,9 +140,12 @@ def create_event():
 @app.route('/update_event', methods=['POST'])
 @token_required
 def update_event():
+    token = request.headers.get('Authorization').split()[1]
+    decoded = jwt.decode(token, app.secret_key, algorithms=['HS256'])
     data = request.get_json()
-    event_name = data.get('event_name')
-    updated_event = data.get('updated_event')
+    event = data.get('event')
+    updated_event = event
+    event_name = event.get('summary')
     api_types = ['google']
 
     if not event_name:
@@ -157,14 +155,18 @@ def update_event():
     if not api_types:
         return jsonify({"error": "API types are required"}), 400
     
+    calendar_service = CalendarService({'google': decoded})
     response = calendar_service.update_event(api_types, event_name, updated_event)
     return jsonify({"message": response})
 
 @app.route('/delete_event', methods=['POST'])
 @token_required
 def delete_event():
+    token = request.headers.get('Authorization').split()[1]
+    decoded = jwt.decode(token, app.secret_key, algorithms=['HS256'])
     data = request.get_json()
-    event_name = data.get('event_name')
+    event = data.get('event')
+    event_name = event.get('summary')
     api_types = ['google']
 
     if not event_name:
@@ -172,6 +174,7 @@ def delete_event():
     if not api_types:
         return jsonify({"error": "API types are required"}), 400
     
+    calendar_service = CalendarService({'google': decoded})
     response = calendar_service.delete_event(api_types, event_name)
     return jsonify({"message": response})
     

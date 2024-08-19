@@ -1,6 +1,22 @@
 import random
 import streamlit as st
 import requests
+import pytz
+from datetime import date
+
+# Get the system's default timezone
+default_timezone = pytz.timezone(pytz.country_timezones['US'][0])
+
+# Get the user's timezone based on their IP address
+user_timezone = pytz.timezone(requests.get('https://ipapi.co/timezone/').text)
+
+# Determine the selected timezone
+timezone = user_timezone if user_timezone else default_timezone
+
+today = date.today()
+
+st.set_page_config(page_title="Chronologic", page_icon="📆", layout="wide")
+st.title('Chronologic')
 
 def initiate_authorization():
     auth_url = 'http://localhost:5000/authorize/google'
@@ -37,18 +53,17 @@ def calendar_interaction(event, function_to_call):
     if response.status_code == 200:
         return response.json()
     else:
-        st.error('Failed to communicate with the server')
-        return None
+        return response
 
-def get_events():
+def get_calendar():
     headers = {'Authorization': f"Bearer {st.session_state['token']}"}
     response = requests.get('http://localhost:5000/calendar', headers=headers)
     if response.status_code == 200:
-        events = response.json()
-        for event in events:
-            st.write(event['summary'])
+        calendar = response.json()
     else:
-        st.error('Failed to retrieve events')
+        st.error('Failed to retrieve calendar.')
+        
+    return calendar
 
 if 'token' not in st.session_state:
     get_token_from_url()
@@ -127,29 +142,44 @@ if 'token' in st.session_state:
         st.session_state.messages.append({"role": "user", "content": prompt})
 
         # Chatbot response
+        prompt = prompt + " Timezone is " + str(timezone.zone) + f". Today's date is {today}."
         response = send_prompt_to_llm(prompt)
         with st.chat_message("Assistant", avatar="🤖"):
             st.markdown(response)
+        while response is None or response['function_to_call'] is None:
+            response = send_prompt_to_llm(prompt)
         function_to_call = response['function_to_call']
+        
         # Remove the function_to_call key from the response
         response = {key: value for key, value in response.items() if key != 'function_to_call'}        
         response = calendar_interaction(event=response, function_to_call=function_to_call)
         
-        # response = {item for item in response if item != 'function_to_call'}
-        # calendar_service.create_event(api_type='google', event=response)
         with st.chat_message("Assistant", avatar="🤖"):
-            st.markdown(response['message'])
-        st.session_state.messages.append({"role": "assistant", "content": response})
-
-
-
+            if response['message']:
+                st.markdown(response['message'])
+            else:
+                st.markdown(response)
+        st.session_state.messages.append({"role": "assistant", "content": response['message']})
+        st.rerun()
+else:
+    st.write('Log in to Google Calendar in the sidebar to get started.')
+    
 with st.sidebar:
     if 'token' in st.session_state:
-        st.write('Logged in to Google Calendar') 
+        calendar = get_calendar()
+        st.header('Welcome!')
+        st.markdown(f'''
+    <iframe id="calendar-iframe" src="{calendar['embed_link']}" style="border: 0" width="450" height="400" frameborder="0" scrolling="no">
+        <meta http-equiv="refresh" content="300">
+    </iframe>
+    ''',
+    unsafe_allow_html=True)
         if st.button('Logout'):
             st.session_state.pop('token')
             st.query_params.clear()
             st.rerun()
+        
+
     else:
         st.write('Log in to Google Calendar')
         if st.button('Login'):
